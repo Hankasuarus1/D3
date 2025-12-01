@@ -1,17 +1,12 @@
+// @deno-types="npm:@types/leaflet"
 import leaflet from "leaflet";
 
-// Styles
 import "leaflet/dist/leaflet.css";
+import "./_leafletWorkaround.ts";
+import luck from "./_luck.ts";
 import "./style.css";
 
-// Fix missing marker images
-import "./_leafletWorkaround.ts";
-
-// Deterministic RNG for token spawning
-import luck from "./_luck.ts";
-
-// DOM setup
-
+// Create panels
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
 document.body.append(controlPanelDiv);
@@ -24,35 +19,36 @@ const statusPanelDiv = document.createElement("div");
 statusPanelDiv.id = "statusPanel";
 document.body.append(statusPanelDiv);
 
-// Constants & types
-
-const CLASSROOM_LATLNG = leaflet.latLng(
+// Constants
+const INITIAL_PLAYER_LATLNG = leaflet.latLng(
   36.997936938057016,
   -122.05703507501151,
 );
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
-const TILE_DEGREES = 1e-4; //
+const TILE_DEGREES = 0.0001;
 const INTERACTION_RADIUS_CELLS = 3;
 const TOKEN_SPAWN_PROBABILITY = 0.25;
-const TARGET_TOKEN_VALUE = 16;
+const TARGET_TOKEN_VALUE = 64;
 
-// Token and cell types
+// Types
 type TokenValue = number;
 
 interface CellState {
   token: TokenValue;
 }
 
-// Game state in memory
+// Game state
 const cellStates = new Map<string, CellState>();
 let handToken: TokenValue | null = null;
 let hasWon = false;
 
-// Map setup
+// Player position (movable)
+let playerLatLng = INITIAL_PLAYER_LATLNG.clone();
 
+// Leaflet map setup
 const map = leaflet.map(mapDiv, {
-  center: CLASSROOM_LATLNG,
+  center: INITIAL_PLAYER_LATLNG,
   zoom: GAMEPLAY_ZOOM_LEVEL,
   minZoom: GAMEPLAY_ZOOM_LEVEL,
   maxZoom: GAMEPLAY_ZOOM_LEVEL,
@@ -61,7 +57,6 @@ const map = leaflet.map(mapDiv, {
   dragging: true,
 });
 
-// Background tiles
 leaflet
   .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -70,15 +65,15 @@ leaflet
   })
   .addTo(map);
 
-// Player marker (fixed to classroom location)
-const playerMarker = leaflet.marker(CLASSROOM_LATLNG);
+// Player marker
+const playerMarker = leaflet.marker(playerLatLng);
 playerMarker.bindTooltip("You are here");
 playerMarker.addTo(map);
 
-// Coordinate helpers
+// Grid origin
+const ORIGIN = INITIAL_PLAYER_LATLNG;
 
-const ORIGIN = CLASSROOM_LATLNG;
-
+// Helpers
 function cellKey(i: number, j: number): string {
   return `${i},${j}`;
 }
@@ -103,23 +98,22 @@ function cellCenterLatLng(i: number, j: number): leaflet.LatLng {
   );
 }
 
-// The player's grid cell (fixed)
-const playerCell = latLngToCell(CLASSROOM_LATLNG);
-
-function isCellNearPlayer(i: number, j: number): boolean {
-  const dx = i - playerCell.i;
-  const dy = j - playerCell.j;
-  const chebyshevDist = Math.max(Math.abs(dx), Math.abs(dy));
-  return chebyshevDist <= INTERACTION_RADIUS_CELLS;
+function getPlayerCell(): { i: number; j: number } {
+  return latLngToCell(playerLatLng);
 }
 
-// Token spawning (deterministic)
+function isCellNearPlayer(i: number, j: number): boolean {
+  const pc = getPlayerCell();
+  const dx = i - pc.i;
+  const dy = j - pc.j;
+  const d = Math.max(Math.abs(dx), Math.abs(dy));
+  return d <= INTERACTION_RADIUS_CELLS;
+}
 
+// Token spawning
 function spawnInitialToken(i: number, j: number): TokenValue {
   const r = luck(`cell-exists:${i},${j}`);
-  if (r >= TOKEN_SPAWN_PROBABILITY) {
-    return 0;
-  }
+  if (r >= TOKEN_SPAWN_PROBABILITY) return 0;
 
   const r2 = luck(`cell-value:${i},${j}`);
   return r2 < 0.5 ? 1 : 2;
@@ -129,15 +123,13 @@ function getOrCreateCellState(i: number, j: number): CellState {
   const key = cellKey(i, j);
   let state = cellStates.get(key);
   if (!state) {
-    const initialToken = spawnInitialToken(i, j);
-    state = { token: initialToken };
+    state = { token: spawnInitialToken(i, j) };
     cellStates.set(key, state);
   }
   return state;
 }
 
-// Rendering cells & labels
-
+// Cell rendering
 const cellLayers = new Map<string, leaflet.LayerGroup>();
 
 function createCellLayer(i: number, j: number): void {
@@ -177,35 +169,34 @@ function updateCellLayer(i: number, j: number): void {
   createCellLayer(i, j);
 }
 
-// Fill the visible map area with grid cells so it looks like the grid
-// extends to the edges of the world.
-function populateInitialGrid(): void {
+function ensureGridCoversView(): void {
   const bounds = map.getBounds();
-  const southWest = bounds.getSouthWest();
-  const northEast = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
 
-  const minI = Math.floor((southWest.lat - ORIGIN.lat) / TILE_DEGREES);
-  const maxI = Math.floor((northEast.lat - ORIGIN.lat) / TILE_DEGREES);
-  const minJ = Math.floor((southWest.lng - ORIGIN.lng) / TILE_DEGREES);
-  const maxJ = Math.floor((northEast.lng - ORIGIN.lng) / TILE_DEGREES);
+  const minI = Math.floor((sw.lat - ORIGIN.lat) / TILE_DEGREES);
+  const maxI = Math.floor((ne.lat - ORIGIN.lat) / TILE_DEGREES);
+  const minJ = Math.floor((sw.lng - ORIGIN.lng) / TILE_DEGREES);
+  const maxJ = Math.floor((ne.lng - ORIGIN.lng) / TILE_DEGREES);
 
   for (let i = minI; i <= maxI; i++) {
     for (let j = minJ; j <= maxJ; j++) {
-      createCellLayer(i, j);
+      const key = cellKey(i, j);
+      if (!cellLayers.has(key)) createCellLayer(i, j);
     }
   }
 }
 
 // UI helpers
-
 function updateHandDisplay(): void {
   const handText = handToken === null
     ? "Hand: empty"
     : `Hand: ${handToken.toString()}`;
+
   controlPanelDiv.innerHTML = `
     <div><strong>${handText}</strong></div>
-    <div>Target token in hand: ${TARGET_TOKEN_VALUE}</div>
-    <div>Interaction radius: ${INTERACTION_RADIUS_CELLS} cells</div>
+    <div>Target token: ${TARGET_TOKEN_VALUE}</div>
+    <div>Right-click to move the player</div>
   `;
 }
 
@@ -220,57 +211,77 @@ function checkWinCondition(): void {
   }
 }
 
-// Interaction logic
+// Player movement
+function movePlayerTo(latlng: leaflet.LatLng): void {
+  playerLatLng = latlng;
+  playerMarker.setLatLng(playerLatLng);
+  map.panTo(playerLatLng);
 
+  const pc = getPlayerCell();
+  setStatus(`Player moved to cell (${pc.i}, ${pc.j})`);
+}
+
+// Right-click to move player
+map.on("contextmenu", (event: leaflet.LeafletMouseEvent) => {
+  movePlayerTo(event.latlng);
+});
+
+// Update grid on map move
+map.on("moveend", () => {
+  ensureGridCoversView();
+});
+
+// Interaction logic
 function handleCellClick(i: number, j: number): void {
   if (!isCellNearPlayer(i, j)) {
-    setStatus("That cell is too far away to interact with.");
+    setStatus("Cell is too far away.");
     return;
   }
 
   const cell = getOrCreateCellState(i, j);
 
+  // Picking up
   if (handToken === null) {
     if (cell.token > 0) {
       handToken = cell.token;
       cell.token = 0;
-      setStatus(`Picked up token ${handToken} from cell (${i}, ${j}).`);
+      setStatus(`Picked up ${handToken}`);
       updateCellLayer(i, j);
       updateHandDisplay();
       checkWinCondition();
     } else {
-      setStatus("There is no token here to pick up.");
+      setStatus("No token to pick up.");
     }
     return;
   }
 
+  // Dropping onto empty cell
   if (cell.token === 0) {
     cell.token = handToken;
-    setStatus(`Placed token ${handToken} on cell (${i}, ${j}).`);
+    setStatus(`Placed ${handToken}`);
     handToken = null;
     updateCellLayer(i, j);
     updateHandDisplay();
     checkWinCondition();
-  } else if (cell.token === handToken) {
-    // Merge equal-valued tokens
+    return;
+  }
+
+  // Merge
+  if (cell.token === handToken) {
     const newValue = handToken * 2;
     cell.token = newValue;
     handToken = null;
-    setStatus(`Crafted token ${newValue} at cell (${i}, ${j}).`);
+    setStatus(`Merged into ${newValue}`);
     updateCellLayer(i, j);
     updateHandDisplay();
-
-    // Win condition is specifically about token in hand, but
-    // player can pick up this high-value token afterwards.
-  } else {
-    setStatus(
-      `Cannot craft: cell has ${cell.token} and your hand has ${handToken}. Values must match.`,
-    );
+    return;
   }
+
+  // Mismatch
+  setStatus(`Cannot merge: ${cell.token} vs ${handToken}`);
 }
 
-// Initialize
-
-populateInitialGrid();
+// Init
+ensureGridCoversView();
 updateHandDisplay();
-setStatus("Click nearby cells to pick up and combine tokens.");
+setStatus("Click nearby cells to interact. Right-click to move.");

@@ -75,7 +75,7 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] Define a target token value in hand (e.g. 8 or 16)
 - [x] After each action, check whether the player’s `handToken` is at least the target value
 - [x] When the player reaches the target in hand, show a clear win message (alert or banner)
-- [ ] Keep at least one cleanup-only commit and one `(D3.a complete)` commit message _(do this when submitting)_
+- [x] Keep at least one cleanup-only commit and one `(D3.a complete)` commit message _(do this when submitting)_
 
 ---
 
@@ -88,32 +88,32 @@ Key gameplay challenge: Players can craft an even higher value token by moving t
 
 #### World-wide grid & rendering
 
-- [ ] Make sure the grid system works for any latitude/longitude (not just near the classroom).
-- [ ] Change the grid generation so it expands as the camera moves:
-  - [ ] On map `moveend`, compute the visible bounds
-  - [ ] For each visible cell, create rectangles and labels if they don’t already exist
-- [ ] Confirm that when the player pans to a far-away area (e.g., across the world), the grid and tokens still appear there.
+- [x] Make sure the grid system works for any latitude/longitude (not just near the classroom)
+- [x] Change the grid generation so it expands as the camera moves:
+  - [x] On map `moveend`, compute the visible bounds
+  - [x] For each visible cell, create rectangles and labels if they don’t already exist
+- [x] Confirm that when the player pans to a far-away area (e.g., across the world), the grid and tokens still appear there
 
 #### Player movement (simulated travel)
 
-- [ ] Replace the fixed player position with a dynamic `playerLatLng`.
-- [ ] Update `isCellNearPlayer` to use the current `playerLatLng` instead of a hard-coded cell.
-- [ ] Add a way to move the player anywhere on the map (e.g., right-click or a special button):
-  - [ ] Move the player marker to the new location
-  - [ ] Recompute the player’s grid cell
-  - [ ] Optionally recenter the map on the player
-- [ ] Update the status text / UI to explain how to move the player.
+- [x] Replace the fixed player position with a dynamic `playerLatLng`
+- [x] Update `isCellNearPlayer` to use the current `playerLatLng` instead of a hard-coded cell
+- [x] Add a way to move the player anywhere on the map (right-click on the map):
+  - [x] Move the player marker to the new location
+  - [x] Recompute the player’s grid cell
+  - [x] Recenter the map on the player
+- [x] Update the status text / UI to explain how to move the player
 
 #### Higher-value crafting goal
 
-- [ ] Increase the `TARGET_TOKEN_VALUE` (e.g., from 16 to 64 or 128).
-- [ ] Test that it is still possible (but more challenging) to reach the goal using resources from multiple areas.
-- [ ] Verify that the win condition still triggers correctly after travel.
+- [x] Increase the `TARGET_TOKEN_VALUE` (e.g., from 16 to 64) to encourage movement
+- [x] Test that it is still possible (but more challenging) to reach the goal using resources from multiple areas
+- [x] Verify that the win condition still triggers correctly after travel
 
 #### Cleanup & commit
 
-- [ ] Do at least one cleanup-only commit for D3.b (no new features, just code quality).
-- [ ] Add a commit with a clear message marking D3.b completion (e.g. `(D3.b complete)`).
+- [ ] Do at least one cleanup-only commit for D3.b (no new features, just code quality)
+- [ ] Add a commit with a clear message marking D3.b completion (e.g. `(D3.b complete)`)
 
 ---
 
