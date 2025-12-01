@@ -73,9 +73,14 @@ playerMarker.addTo(map);
 // Grid origin
 const ORIGIN = INITIAL_PLAYER_LATLNG;
 
-// Helpers
+// Helper functions for coordinates
 function cellKey(i: number, j: number): string {
   return `${i},${j}`;
+}
+
+function parseCellKey(key: string): { i: number; j: number } {
+  const [iStr, jStr] = key.split(",");
+  return { i: Number(iStr), j: Number(jStr) };
 }
 
 function latLngToCell(latlng: leaflet.LatLng): { i: number; j: number } {
@@ -110,7 +115,7 @@ function isCellNearPlayer(i: number, j: number): boolean {
   return d <= INTERACTION_RADIUS_CELLS;
 }
 
-// Token spawning
+// Token spawning (deterministic)
 function spawnInitialToken(i: number, j: number): TokenValue {
   const r = luck(`cell-exists:${i},${j}`);
   if (r >= TOKEN_SPAWN_PROBABILITY) return 0;
@@ -169,6 +174,7 @@ function updateCellLayer(i: number, j: number): void {
   createCellLayer(i, j);
 }
 
+// Ensure grid covers view and remove far-off layers
 function ensureGridCoversView(): void {
   const bounds = map.getBounds();
   const sw = bounds.getSouthWest();
@@ -179,6 +185,20 @@ function ensureGridCoversView(): void {
   const minJ = Math.floor((sw.lng - ORIGIN.lng) / TILE_DEGREES);
   const maxJ = Math.floor((ne.lng - ORIGIN.lng) / TILE_DEGREES);
 
+  const padding = 2;
+
+  // Remove layers far outside the current view (state stays in cellStates)
+  for (const [key, layer] of cellLayers.entries()) {
+    const { i, j } = parseCellKey(key);
+    const outsideI = i < minI - padding || i > maxI + padding;
+    const outsideJ = j < minJ - padding || j > maxJ + padding;
+    if (outsideI || outsideJ) {
+      map.removeLayer(layer);
+      cellLayers.delete(key);
+    }
+  }
+
+  // Add layers for all visible cells
   for (let i = minI; i <= maxI; i++) {
     for (let j = minJ; j <= maxJ; j++) {
       const key = cellKey(i, j);
@@ -196,6 +216,7 @@ function updateHandDisplay(): void {
   controlPanelDiv.innerHTML = `
     <div><strong>${handText}</strong></div>
     <div>Target token: ${TARGET_TOKEN_VALUE}</div>
+    <div>Interaction radius: ${INTERACTION_RADIUS_CELLS} cells</div>
     <div>Right-click to move the player</div>
   `;
 }

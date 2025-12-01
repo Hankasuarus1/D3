@@ -133,17 +133,17 @@ Key gameplay challenge: Prevent players from farming tokens by repeatedly enteri
 #### Handle off-screen cells
 
 - [x] Use `ensureGridCoversView` to generate layers only for currently visible cells
-- [ ] Add logic to remove cell layers that are far outside the current view, while keeping their `cellStates` entries
-- [ ] Confirm that when you scroll away and back, cells keep their modified token values
+- [x] Add logic to remove cell layers that are far outside the current view, while keeping their `cellStates` entries
+- [x] Confirm that when you scroll away and back, cells keep their modified token values
 
 #### Prevent token farming exploit
 
-- [ ] Manually test for the farming bug:
-  - [ ] Pick up a token from a cell
-  - [ ] Move or pan far away so that region is off-screen
-  - [ ] Return to that region (or move the player back)
-  - [ ] Verify that the cell is still empty and does not get a new free token
-- [ ] If any respawn happens unexpectedly, fix logic so tokens are only created the first time a cell is seen
+- [x] Manually test for the farming bug:
+  - [x] Pick up a token from a cell
+  - [x] Move or pan far away so that region is off-screen
+  - [x] Return to that region (or move the player back)
+  - [x] Verify that the cell is still empty and does not get a new free token
+- [x] Ensure tokens are only created the first time a cell is seen (via `getOrCreateCellState` + `cellStates`)
 
 #### Cleanup & commit
 
