@@ -147,8 +147,8 @@ Key gameplay challenge: Prevent players from farming tokens by repeatedly enteri
 
 #### Cleanup & commit
 
-- [ ] Do at least one cleanup-only commit for D3.c (no new features, just code quality)
-- [ ] Add a commit with a clear message marking D3.c completion (e.g. `(D3.c complete)`)
+- [x] Do at least one cleanup-only commit for D3.c (no new features, just code quality)
+- [x] Add a commit with a clear message marking D3.c completion (e.g. `(D3.c complete)`)
 
 ---
 
