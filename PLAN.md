@@ -154,15 +154,35 @@ Key gameplay challenge: Prevent players from farming tokens by repeatedly enteri
 
 ## D3.d: Gameplay across real-world space and time
 
-Key technical challenges: Persist game across page closes; control player movement via real-world geolocation.\
+Key technical challenges: Persist game state across page closes; control player movement via real-world geolocation.\
 Key gameplay challenge: Support multiple play sessions, some with real movement and some with simulated movement.
 
 ### Steps
 
-- [ ] Implement game state serialization to JSON (Memento-style snapshot)
-- [ ] Save game state to `localStorage` at key moments (e.g., after each interaction)
-- [ ] Load and restore game state from `localStorage` on page load
-- [ ] Use `navigator.geolocation` to set player position from the device’s GPS
-- [ ] Provide a fallback/simulation mode for testing on desktop without real movement
-- [ ] Test gameplay across multiple sessions: close the tab and reopen, verify persistence
-- [ ] Final cleanup commit + `(D3.d complete)` marker commit
+#### State persistence across sessions
+
+- [x] Design a serializable game state format (hand token, player position, win flag, cells)
+- [x] Implement `saveGameState` to write JSON into `localStorage`
+- [x] Implement `loadGameState` to restore state on page load
+- [x] Ensure `saveGameState` is called after important actions (pickup, drop, merge, movement, win)
+- [ ] Manually test: refresh the page and confirm that player position, hand token, and modified cells are preserved
+
+#### Real-world and simulated movement
+
+- [x] Keep simulated player movement via right-click on the map
+- [x] Add a “Enable GPS tracking” button in the UI
+- [x] Use `navigator.geolocation.watchPosition` to update the player’s in-game position from the device GPS
+- [x] Update UI text to show GPS status (off, tracking, error)
+- [ ] Manually test GPS on a real device (or emulator) to confirm that walking around moves the in-game player
+
+#### Combined gameplay across sessions
+
+- [ ] Play at least two sessions:
+  - [ ] Session 1: move, collect, and merge tokens, then close the tab
+  - [ ] Session 2: reopen the page and verify that the world, player position, and inventory match where you left off
+- [ ] Confirm that both GPS movement and right-click movement work after reloading
+
+#### Cleanup & commit
+
+- [ ] Do at least one cleanup-only commit for D3.d (no new features, just code quality/docs)
+- [ ] Add a commit with a clear message marking D3.d completion (e.g. `(D3.d complete)`)

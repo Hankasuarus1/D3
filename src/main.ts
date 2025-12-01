@@ -30,6 +30,8 @@ const TILE_DEGREES = 0.0001;
 const INTERACTION_RADIUS_CELLS = 3;
 const TOKEN_SPAWN_PROBABILITY = 0.25;
 const TARGET_TOKEN_VALUE = 64;
+const STORAGE_KEY = "world-of-bits-state-v1";
+const GPS_BUTTON_ID = "gpsButton";
 
 // Types
 type TokenValue = number;
@@ -38,37 +40,29 @@ interface CellState {
   token: TokenValue;
 }
 
+interface StoredCell {
+  key: string;
+  token: number;
+}
+
+interface StoredState {
+  version: number;
+  handToken: TokenValue | null;
+  hasWon: boolean;
+  playerLat: number;
+  playerLng: number;
+  cells: StoredCell[];
+}
+
 // Game state
 const cellStates = new Map<string, CellState>();
 let handToken: TokenValue | null = null;
 let hasWon = false;
-
-// Player position (movable)
 let playerLatLng = INITIAL_PLAYER_LATLNG.clone();
 
-// Leaflet map setup
-const map = leaflet.map(mapDiv, {
-  center: INITIAL_PLAYER_LATLNG,
-  zoom: GAMEPLAY_ZOOM_LEVEL,
-  minZoom: GAMEPLAY_ZOOM_LEVEL,
-  maxZoom: GAMEPLAY_ZOOM_LEVEL,
-  zoomControl: false,
-  scrollWheelZoom: false,
-  dragging: true,
-});
-
-leaflet
-  .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution:
-      '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  })
-  .addTo(map);
-
-// Player marker
-const playerMarker = leaflet.marker(playerLatLng);
-playerMarker.bindTooltip("You are here");
-playerMarker.addTo(map);
+// Geolocation state
+let geoWatchId: number | null = null;
+let geoStatus = "GPS: off";
 
 // Grid origin
 const ORIGIN = INITIAL_PLAYER_LATLNG;
@@ -134,6 +128,78 @@ function getOrCreateCellState(i: number, j: number): CellState {
   return state;
 }
 
+// Persistence
+function saveGameState(): void {
+  try {
+    const cells: StoredCell[] = [];
+    for (const [key, state] of cellStates.entries()) {
+      cells.push({ key, token: state.token });
+    }
+    const stored: StoredState = {
+      version: 1,
+      handToken,
+      hasWon,
+      playerLat: playerLatLng.lat,
+      playerLng: playerLatLng.lng,
+      cells,
+    };
+    const json = JSON.stringify(stored);
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, json);
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function loadGameState(): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as StoredState;
+    if (parsed.version !== 1) return;
+
+    handToken = parsed.handToken;
+    hasWon = parsed.hasWon;
+    playerLatLng = leaflet.latLng(parsed.playerLat, parsed.playerLng);
+
+    cellStates.clear();
+    for (const c of parsed.cells) {
+      cellStates.set(c.key, { token: c.token });
+    }
+  } catch {
+    // ignore load errors
+  }
+}
+
+// Load saved state before creating map
+loadGameState();
+
+// Leaflet map setup
+const map = leaflet.map(mapDiv, {
+  center: playerLatLng,
+  zoom: GAMEPLAY_ZOOM_LEVEL,
+  minZoom: GAMEPLAY_ZOOM_LEVEL,
+  maxZoom: GAMEPLAY_ZOOM_LEVEL,
+  zoomControl: false,
+  scrollWheelZoom: false,
+  dragging: true,
+});
+
+leaflet
+  .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution:
+      '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  })
+  .addTo(map);
+
+// Player marker
+const playerMarker = leaflet.marker(playerLatLng);
+playerMarker.bindTooltip("You are here");
+playerMarker.addTo(map);
+
 // Cell rendering
 const cellLayers = new Map<string, leaflet.LayerGroup>();
 
@@ -174,7 +240,6 @@ function updateCellLayer(i: number, j: number): void {
   createCellLayer(i, j);
 }
 
-// Ensure grid covers view and remove far-off layers
 function ensureGridCoversView(): void {
   const bounds = map.getBounds();
   const sw = bounds.getSouthWest();
@@ -187,7 +252,6 @@ function ensureGridCoversView(): void {
 
   const padding = 2;
 
-  // Remove layers far outside the current view (state stays in cellStates)
   for (const [key, layer] of cellLayers.entries()) {
     const { i, j } = parseCellKey(key);
     const outsideI = i < minI - padding || i > maxI + padding;
@@ -198,7 +262,6 @@ function ensureGridCoversView(): void {
     }
   }
 
-  // Add layers for all visible cells
   for (let i = minI; i <= maxI; i++) {
     for (let j = minJ; j <= maxJ; j++) {
       const key = cellKey(i, j);
@@ -217,8 +280,19 @@ function updateHandDisplay(): void {
     <div><strong>${handText}</strong></div>
     <div>Target token: ${TARGET_TOKEN_VALUE}</div>
     <div>Interaction radius: ${INTERACTION_RADIUS_CELLS} cells</div>
-    <div>Right-click to move the player</div>
+    <div>${geoStatus}</div>
+    <button id="${GPS_BUTTON_ID}">Enable GPS tracking</button>
+    <div>Tip: right-click to move the player manually.</div>
   `;
+
+  const gpsButton = document.getElementById(
+    GPS_BUTTON_ID,
+  ) as HTMLButtonElement | null;
+  if (gpsButton) {
+    gpsButton.onclick = () => {
+      enableGeolocation();
+    };
+  }
 }
 
 function setStatus(message: string): void {
@@ -229,6 +303,7 @@ function checkWinCondition(): void {
   if (!hasWon && handToken !== null && handToken >= TARGET_TOKEN_VALUE) {
     hasWon = true;
     alert(`You crafted a token of value ${handToken}! You win!`);
+    saveGameState();
   }
 }
 
@@ -240,9 +315,45 @@ function movePlayerTo(latlng: leaflet.LatLng): void {
 
   const pc = getPlayerCell();
   setStatus(`Player moved to cell (${pc.i}, ${pc.j})`);
+  saveGameState();
 }
 
-// Right-click to move player
+// Geolocation
+function enableGeolocation(): void {
+  if (geoWatchId !== null) {
+    geoStatus = "GPS: already tracking";
+    updateHandDisplay();
+    return;
+  }
+
+  if (!("geolocation" in navigator)) {
+    geoStatus = "GPS: not supported in this browser";
+    updateHandDisplay();
+    return;
+  }
+
+  geoStatus = "GPS: requesting permission...";
+  updateHandDisplay();
+
+  geoWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      geoStatus = "GPS: tracking";
+      movePlayerTo(leaflet.latLng(lat, lng));
+      updateHandDisplay();
+    },
+    (err) => {
+      geoStatus = "GPS error: " + err.message;
+      updateHandDisplay();
+    },
+    {
+      enableHighAccuracy: true,
+    },
+  );
+}
+
+// Right-click to move player manually (simulated movement)
 map.on("contextmenu", (event: leaflet.LeafletMouseEvent) => {
   movePlayerTo(event.latlng);
 });
@@ -269,6 +380,7 @@ function handleCellClick(i: number, j: number): void {
       setStatus(`Picked up ${handToken}`);
       updateCellLayer(i, j);
       updateHandDisplay();
+      saveGameState();
       checkWinCondition();
     } else {
       setStatus("No token to pick up.");
@@ -283,6 +395,7 @@ function handleCellClick(i: number, j: number): void {
     handToken = null;
     updateCellLayer(i, j);
     updateHandDisplay();
+    saveGameState();
     checkWinCondition();
     return;
   }
@@ -295,6 +408,7 @@ function handleCellClick(i: number, j: number): void {
     setStatus(`Merged into ${newValue}`);
     updateCellLayer(i, j);
     updateHandDisplay();
+    saveGameState();
     return;
   }
 
@@ -305,4 +419,6 @@ function handleCellClick(i: number, j: number): void {
 // Init
 ensureGridCoversView();
 updateHandDisplay();
-setStatus("Click nearby cells to interact. Right-click to move.");
+setStatus(
+  "Click nearby cells to interact. Right-click to move. Use GPS button for real-world movement.",
+);
