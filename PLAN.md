@@ -23,68 +23,59 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 ### Steps
 
-#### Setup & scaffolding
+#### Setup & cleanup
 
-- [ ] Create this `PLAN.md` file in the project root and commit it
-- [ ] Verify Vite + TypeScript project builds and runs (`npm run dev` or equivalent)
-- [ ] Install Leaflet and its types (`npm install leaflet @types/leaflet`)
-- [ ] Import Leaflet CSS and JS into `main.ts` (or equivalent entry file)
+- [x] Create `PLAN.md` in the repo root and commit it
+- [x] Delete all existing code in `src/main.ts` (keep `_leafletWorkaround.ts`, `_luck.ts`, and `style.css` as-is)
+- [x] Import Leaflet CSS, `style.css`, `_leafletWorkaround.ts`, and `luck` into the new `main.ts`
 
-#### Map & player representation
+#### Map & player setup
 
-- [ ] Show a basic Leaflet map centered on a starting location (e.g., UCSC campus)
-- [ ] Make the map fill the viewport (desktop + mobile friendly)
-- [ ] Draw a marker or icon for the player’s current position (initially a fixed lat/lon)
-- [ ] Add a simple HUD overlay (e.g., div on top of map) showing:
-  - [ ] Current token in hand (or “empty”)
-  - [ ] Target token value (e.g., 256)
+- [x] Create a Leaflet map centered on the fixed classroom location at a single zoom level
+- [x] Disable zooming (your code uses fixed zoom + disabled zoom wheel)
+- [x] Add a marker representing the player at the classroom location
+- [x] Ensure the map is sized so cells fill the entire visible area of the map container _(your CSS supports this and the map fills the viewport)_
 
-#### Grid & cell model
+#### Grid & cell rendering
 
-- [ ] Choose a grid resolution (e.g., 0.001° lat × 0.001° lon per cell)
-- [ ] Implement a function `latLonToCell(lat, lon)` that maps to discrete cell coordinates
-- [ ] Implement `cellToLatLon(cellX, cellY)` that gives the center of a cell
-- [ ] Implement a unique `cellId(x, y)` string to use as a key in a map/dictionary
-- [ ] Define TypeScript types/interfaces for:
-  - [ ] Token values (powers of 2)
-  - [ ] Cell state (token or empty)
-  - [ ] Overall game state (cells, player position, hand token, target value)
-- [ ] Initialize a small region of cells around the starting location with random tokens (e.g., value 1 or empty)
+- [x] Choose a fixed grid cell size (`TILE_DEGREES = 0.0001`)
+- [x] Implement `latLngToCell(latlng)` → `{ i, j }` grid coordinates relative to classroom origin
+- [x] Implement `cellToBounds(i, j)` → Leaflet `LatLngBounds` for the cell rectangle
+- [x] Implement `cellCenterLatLng(i, j)` → center position for label placement
+- [x] On startup, compute the map’s visible bounds and determine the `(i, j)` range covering the entire viewport
+- [x] For each visible cell, draw a rectangle so the grid extends to map edges
+- [x] Add always-visible labels at the cell center showing:
+  - [x] the token value if the cell has a token
+  - [x] blank if the cell is empty
 
-#### Drawing cells and tokens on the map
+#### Token spawning (deterministic)
 
-- [ ] Render a visual grid (rectangles or implicit grid) for a small area around the player
-- [ ] For each cell with a token, draw a marker or icon on the map at the cell center
-- [ ] Display the token’s value on the marker (e.g., via label or custom icon)
-- [ ] Provide a function that re-renders all map markers based on current game state
+- [x] Use the `luck` function with a situation string including cell coordinates to determine:
+  - [x] Whether a cell initially has a token
+  - [x] What the initial token value is (simple 1/2 choice already implemented)
+- [x] Store cell state in a `Map` keyed by cell id so mutations (pick up / drop / merge) happen in memory
+- [x] Ensure that the initial token layout is deterministic across page loads (same cell coordinates → same initial token)
 
-#### Nearby interaction logic
+#### Interaction rules
 
-- [ ] Choose a “nearby” radius (e.g., 75 meters)
-- [ ] Implement a distance check helper: given player position and cell position, determine if the cell is nearby
-- [ ] Add a map click handler:
-  - [ ] On map click, convert click lat/lon to a cell via `latLonToCell`
-  - [ ] Check if that cell is nearby the player; if not, ignore or show a message
-- [ ] Implement game interaction rules:
-  - [ ] If hand is empty and nearby cell has a token → pick up (hand = token, cell becomes empty)
-  - [ ] If hand has a token and nearby cell is empty → drop token there
-  - [ ] If hand has a token and nearby cell has same value → merge into one cell with doubled value and clear hand
-  - [ ] If hand has a token and cell has different value → no-op or show feedback (cannot merge)
+- [x] Define a fixed interaction radius in grid cells (e.g. 3 cells away from player cell)
+- [x] Implement a click handler for each cell rectangle:
+  - [x] Convert click to `(i, j)` and check whether the cell is within the interaction radius
+  - [x] If too far away, ignore or show a message
+- [x] Maintain `handToken: number | null` in game state
+- [x] Implement interactions:
+  - [x] If `handToken === null` and cell has a token → pick up token (remove from cell, put into hand)
+  - [x] If `handToken !== null` and cell is empty → drop token onto cell
+  - [x] If `handToken !== null` and cell has equal token value → merge to double value in the cell and clear hand
+  - [x] If `handToken !== null` and cell has unequal token value → no-op with a clear message
 
-#### Win condition & feedback
+#### UI feedback & win condition
 
-- [ ] Set a target token value for the milestone (e.g., 256)
-- [ ] After each interaction, check if any cell (or hand) has reached the target value
-- [ ] When the target value is reached, show a victory message/banner (simple alert is okay for D3.a)
-- [ ] Ensure the player can continue playing after winning (or at least reload to restart)
-
-#### Cleanup & deployment
-
-- [ ] Do at least one cleanup-only commit (removing dead code, console logs, etc.)
-- [ ] Verify that the map and HUD work on a mobile browser (or mobile devtools)
-- [ ] Set up or update GitHub Pages deployment for the project
-- [ ] Confirm that the deployed URL loads the playable D3.a version of the game
-- [ ] Add a commit with a clear message marking D3.a completion (e.g. `feat: (D3.a complete)`)
+- [x] Show current hand contents in a visible control/status panel (you display `Hand: ...`)
+- [x] Define a target token value in hand (e.g. 8 or 16)
+- [x] After each action, check whether the player’s `handToken` is at least the target value
+- [x] When the player reaches the target in hand, show a clear win message (alert or banner)
+- [ ] Keep at least one cleanup-only commit and one `(D3.a complete)` commit message _(do this when submitting)_
 
 ---
 
