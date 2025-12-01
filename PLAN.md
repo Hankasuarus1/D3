@@ -112,8 +112,8 @@ Key gameplay challenge: Players can craft an even higher value token by moving t
 
 #### Cleanup & commit
 
-- [ ] Do at least one cleanup-only commit for D3.b (no new features, just code quality)
-- [ ] Add a commit with a clear message marking D3.b completion (e.g. `(D3.b complete)`)
+- [x] Do at least one cleanup-only commit for D3.b (no new features, just code quality)
+- [x] Add a commit with a clear message marking D3.b completion (e.g. `(D3.b complete)`)
 
 ---
 
