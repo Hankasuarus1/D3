@@ -184,5 +184,5 @@ Key gameplay challenge: Support multiple play sessions, some with real movement 
 
 #### Cleanup & commit
 
-- [ ] Do at least one cleanup-only commit for D3.d (no new features, just code quality/docs)
-- [ ] Add a commit with a clear message marking D3.d completion (e.g. `(D3.d complete)`)
+- [x] Do at least one cleanup-only commit for D3.d (no new features, just code quality/docs)
+- [x] Add a commit with a clear message marking D3.d completion (e.g. `(D3.d complete)`)
