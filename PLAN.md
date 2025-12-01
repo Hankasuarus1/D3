@@ -165,7 +165,7 @@ Key gameplay challenge: Support multiple play sessions, some with real movement 
 - [x] Implement `saveGameState` to write JSON into `localStorage`
 - [x] Implement `loadGameState` to restore state on page load
 - [x] Ensure `saveGameState` is called after important actions (pickup, drop, merge, movement, win)
-- [ ] Manually test: refresh the page and confirm that player position, hand token, and modified cells are preserved
+- [x] Manually test: refresh the page and confirm that player position, hand token, and modified cells are preserved
 
 #### Real-world and simulated movement
 
@@ -173,14 +173,14 @@ Key gameplay challenge: Support multiple play sessions, some with real movement 
 - [x] Add a “Enable GPS tracking” button in the UI
 - [x] Use `navigator.geolocation.watchPosition` to update the player’s in-game position from the device GPS
 - [x] Update UI text to show GPS status (off, tracking, error)
-- [ ] Manually test GPS on a real device (or emulator) to confirm that walking around moves the in-game player
+- [x] Manually test GPS on a real device (or emulator) to confirm that walking around moves the in-game player
 
 #### Combined gameplay across sessions
 
-- [ ] Play at least two sessions:
-  - [ ] Session 1: move, collect, and merge tokens, then close the tab
-  - [ ] Session 2: reopen the page and verify that the world, player position, and inventory match where you left off
-- [ ] Confirm that both GPS movement and right-click movement work after reloading
+- [x] Play at least two sessions:
+  - [x] Session 1: move, collect, and merge tokens, then close the tab
+  - [x] Session 2: reopen the page and verify that the world, player position, and inventory match where you left off
+- [x] Confirm that both GPS movement and right-click movement work after reloading
 
 #### Cleanup & commit
 
