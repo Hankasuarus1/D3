@@ -124,10 +124,31 @@ Key gameplay challenge: Prevent players from farming tokens by repeatedly enteri
 
 ### Steps
 
-- [ ] Separate long-term cell state from on-screen rendering (logical state vs. view)
-- [ ] Ensure cells that have been interacted with keep their modified token values
-- [ ] Detect and fix any exploit where leaving and re-entering the map region respawns tokens
-- [ ] Add developer/debug controls/UI to inspect cell state for off-screen regions
+#### Separate game state from rendering
+
+- [x] Store cell data (token values) in a separate data structure (`cellStates: Map<string, CellState>`)
+- [x] Make rendering functions (`createCellLayer`, `updateCellLayer`) read from `cellStates` instead of recomputing tokens
+- [x] Ensure mutated cells (picked up, merged, etc.) update `cellStates` and then re-render from that state
+
+#### Handle off-screen cells
+
+- [x] Use `ensureGridCoversView` to generate layers only for currently visible cells
+- [ ] Add logic to remove cell layers that are far outside the current view, while keeping their `cellStates` entries
+- [ ] Confirm that when you scroll away and back, cells keep their modified token values
+
+#### Prevent token farming exploit
+
+- [ ] Manually test for the farming bug:
+  - [ ] Pick up a token from a cell
+  - [ ] Move or pan far away so that region is off-screen
+  - [ ] Return to that region (or move the player back)
+  - [ ] Verify that the cell is still empty and does not get a new free token
+- [ ] If any respawn happens unexpectedly, fix logic so tokens are only created the first time a cell is seen
+
+#### Cleanup & commit
+
+- [ ] Do at least one cleanup-only commit for D3.c (no new features, just code quality)
+- [ ] Add a commit with a clear message marking D3.c completion (e.g. `(D3.c complete)`)
 
 ---
 
