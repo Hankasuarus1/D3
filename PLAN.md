@@ -86,11 +86,34 @@ Key gameplay challenge: Players can craft an even higher value token by moving t
 
 ### Steps
 
-- [ ] Generalize grid/token generation so it works for any latitude/longitude
-- [ ] Introduce deterministic token generation per cell (e.g., seeded by cellId) so cells are consistent across sessions
-- [ ] Increase target token value (e.g., 512 or 1024) to encourage movement
-- [ ] Add UI feedback encouraging players to explore new regions
-- [ ] Update deployment and test interaction in a distant area (simulate by panning map)
+#### World-wide grid & rendering
+
+- [ ] Make sure the grid system works for any latitude/longitude (not just near the classroom).
+- [ ] Change the grid generation so it expands as the camera moves:
+  - [ ] On map `moveend`, compute the visible bounds
+  - [ ] For each visible cell, create rectangles and labels if they don’t already exist
+- [ ] Confirm that when the player pans to a far-away area (e.g., across the world), the grid and tokens still appear there.
+
+#### Player movement (simulated travel)
+
+- [ ] Replace the fixed player position with a dynamic `playerLatLng`.
+- [ ] Update `isCellNearPlayer` to use the current `playerLatLng` instead of a hard-coded cell.
+- [ ] Add a way to move the player anywhere on the map (e.g., right-click or a special button):
+  - [ ] Move the player marker to the new location
+  - [ ] Recompute the player’s grid cell
+  - [ ] Optionally recenter the map on the player
+- [ ] Update the status text / UI to explain how to move the player.
+
+#### Higher-value crafting goal
+
+- [ ] Increase the `TARGET_TOKEN_VALUE` (e.g., from 16 to 64 or 128).
+- [ ] Test that it is still possible (but more challenging) to reach the goal using resources from multiple areas.
+- [ ] Verify that the win condition still triggers correctly after travel.
+
+#### Cleanup & commit
+
+- [ ] Do at least one cleanup-only commit for D3.b (no new features, just code quality).
+- [ ] Add a commit with a clear message marking D3.b completion (e.g. `(D3.b complete)`).
 
 ---
 
