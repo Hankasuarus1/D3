@@ -30,7 +30,8 @@ const TILE_DEGREES = 0.0001;
 const INTERACTION_RADIUS_CELLS = 3;
 const TOKEN_SPAWN_PROBABILITY = 0.25;
 const TARGET_TOKEN_VALUE = 64;
-const STORAGE_KEY = "world-of-bits-state-v1";
+// use v2 to ignore any old large save under v1
+const STORAGE_KEY = "world-of-bits-state-v2";
 const GPS_BUTTON_ID = "gpsButton";
 
 // Types
@@ -133,7 +134,12 @@ function saveGameState(): void {
   try {
     const cells: StoredCell[] = [];
     for (const [key, state] of cellStates.entries()) {
-      cells.push({ key, token: state.token });
+      const { i, j } = parseCellKey(key);
+      const initial = spawnInitialToken(i, j);
+      // only store cells that differ from their initial spawn
+      if (state.token !== initial) {
+        cells.push({ key, token: state.token });
+      }
     }
     const stored: StoredState = {
       version: 1,
@@ -165,6 +171,7 @@ function loadGameState(): void {
     playerLatLng = leaflet.latLng(parsed.playerLat, parsed.playerLng);
 
     cellStates.clear();
+    // we only store modified cells; base world is still deterministic
     for (const c of parsed.cells) {
       cellStates.set(c.key, { token: c.token });
     }
@@ -207,11 +214,17 @@ function createCellLayer(i: number, j: number): void {
   const key = cellKey(i, j);
   const cellState = getOrCreateCellState(i, j);
 
+  const inRange = isCellNearPlayer(i, j);
+
   const bounds = cellToBounds(i, j);
   const rect = leaflet.rectangle(bounds, {
-    color: "#999",
-    weight: 1,
-    fillOpacity: cellState.token > 0 ? 0.2 : 0.05,
+    color: inRange ? "#0a0" : "#999",
+    weight: inRange ? 2 : 1,
+    fillOpacity: cellState.token > 0
+      ? inRange ? 0.35 : 0.2
+      : inRange
+      ? 0.15
+      : 0.05,
   });
 
   rect.on("click", () => handleCellClick(i, j));
@@ -240,6 +253,7 @@ function updateCellLayer(i: number, j: number): void {
   createCellLayer(i, j);
 }
 
+// Ensure grid covers view and remove far-off layers
 function ensureGridCoversView(): void {
   const bounds = map.getBounds();
   const sw = bounds.getSouthWest();
@@ -270,6 +284,15 @@ function ensureGridCoversView(): void {
   }
 }
 
+// Refresh visible cells (for in-range highlight when player moves)
+function refreshVisibleCellStyles(): void {
+  const keys = Array.from(cellLayers.keys());
+  for (const key of keys) {
+    const { i, j } = parseCellKey(key);
+    updateCellLayer(i, j);
+  }
+}
+
 // UI helpers
 function updateHandDisplay(): void {
   const handText = handToken === null
@@ -282,7 +305,7 @@ function updateHandDisplay(): void {
     <div>Interaction radius: ${INTERACTION_RADIUS_CELLS} cells</div>
     <div>${geoStatus}</div>
     <button id="${GPS_BUTTON_ID}">Enable GPS tracking</button>
-    <div>Tip: right-click to move the player manually.</div>
+    <div>Tip: right-click to move the player. Green cells are in range.</div>
   `;
 
   const gpsButton = document.getElementById(
@@ -315,6 +338,7 @@ function movePlayerTo(latlng: leaflet.LatLng): void {
 
   const pc = getPlayerCell();
   setStatus(`Player moved to cell (${pc.i}, ${pc.j})`);
+  refreshVisibleCellStyles();
   saveGameState();
 }
 
@@ -361,6 +385,7 @@ map.on("contextmenu", (event: leaflet.LeafletMouseEvent) => {
 // Update grid on map move
 map.on("moveend", () => {
   ensureGridCoversView();
+  refreshVisibleCellStyles();
 });
 
 // Interaction logic
@@ -418,7 +443,8 @@ function handleCellClick(i: number, j: number): void {
 
 // Init
 ensureGridCoversView();
+refreshVisibleCellStyles();
 updateHandDisplay();
 setStatus(
-  "Click nearby cells to interact. Right-click to move. Use GPS button for real-world movement.",
+  "Click green (in-range) cells to interact. Right-click to move. Use GPS button for real-world movement.",
 );
